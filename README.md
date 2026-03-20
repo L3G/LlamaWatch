@@ -2,7 +2,7 @@
 
 A tiny macOS menu bar app that keeps an eye on [Ollama](https://ollama.com).
 
-No dock icon. No windows. Just a small eye in your menu bar that tells you everything you need to know.
+I wanted to see if Ollama was running and easily stop it. The current Ollama desktop app doesn't do this from the status bar, which is what this lightweight app aims to solve.
 
 ## Features
 
