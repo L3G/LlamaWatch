@@ -63,6 +63,10 @@ LlamaWatch polls the system process list every 3 seconds to detect whether Ollam
 
 The entire app is a single `main.swift` file compiled with `swiftc` into a minimal `.app` bundle. No SwiftUI, no storyboards, no Xcode project — just AppKit and a shell script.
 
+## Disclaimer
+
+LlamaWatch is an independent project and is not affiliated with, endorsed by, or associated with the [Ollama](https://ollama.com) team in any way.
+
 ## License
 
 MIT
