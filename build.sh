@@ -9,7 +9,15 @@ echo "Building LlamaWatch..."
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$APP_DIR/MacOS"
+mkdir -p "$APP_DIR/Resources"
 cp "$SCRIPT_DIR/Info.plist" "$APP_DIR/"
+
+# Generate app icon if needed
+if [ ! -f "$SCRIPT_DIR/AppIcon.icns" ]; then
+    echo "Generating app icon..."
+    (cd "$SCRIPT_DIR" && swift generate_icon.swift)
+fi
+cp "$SCRIPT_DIR/AppIcon.icns" "$APP_DIR/Resources/"
 
 swiftc -swift-version 5 \
     -o "$APP_DIR/MacOS/LlamaWatch" \
