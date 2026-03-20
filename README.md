@@ -39,27 +39,23 @@ No dock icon. No windows. Just a small eye in your menu bar that tells you every
 - [Ollama](https://ollama.com) installed via Homebrew (`brew install ollama`)
 - Xcode Command Line Tools (`xcode-select --install`)
 
-## Build & Run
+## Install
 
 ```bash
 git clone https://github.com/L3G/LlamaWatch.git
 cd LlamaWatch
-chmod +x build.sh
-./build.sh
-open build/LlamaWatch.app
+make install
 ```
 
-That's it. The app compiles in under a second.
-
-## Install as Login Item
-
-To have LlamaWatch start automatically when you log in:
+This builds the app and copies it to `/Applications/`. To uninstall:
 
 ```bash
-cp -r build/LlamaWatch.app /Applications/
+make uninstall
 ```
 
-Then go to **System Settings > General > Login Items** and add LlamaWatch.
+### Start at Login
+
+To have LlamaWatch launch automatically, add it in **System Settings > General > Login Items**.
 
 ## How It Works
 
