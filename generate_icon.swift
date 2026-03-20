@@ -29,17 +29,23 @@ for (size, name) in sizes {
     NSColor(calibratedRed: 0.15, green: 0.15, blue: 0.20, alpha: 1.0).setFill()
     bgPath.fill()
 
-    // Draw the eye symbol
+    // Draw the eye symbol in white
     let symbolSize = size * 0.55
     let config = NSImage.SymbolConfiguration(pointSize: symbolSize, weight: .medium)
     if let symbol = NSImage(systemSymbolName: "eye.fill", accessibilityDescription: nil)?
         .withSymbolConfiguration(config) {
-        let symbolRect = symbol.size
-        let x = (size - symbolRect.width) / 2
-        let y = (size - symbolRect.height) / 2
-        NSColor.white.set()
-        symbol.draw(in: NSRect(x: x, y: y, width: symbolRect.width, height: symbolRect.height),
-                    from: .zero, operation: .sourceOver, fraction: 1.0)
+        // Create a white-tinted copy of the symbol
+        let tinted = NSImage(size: symbol.size)
+        tinted.lockFocus()
+        symbol.draw(in: NSRect(origin: .zero, size: symbol.size), from: .zero, operation: .sourceOver, fraction: 1.0)
+        NSColor.white.setFill()
+        NSRect(origin: .zero, size: symbol.size).fill(using: .sourceAtop)
+        tinted.unlockFocus()
+
+        let x = (size - tinted.size.width) / 2
+        let y = (size - tinted.size.height) / 2
+        tinted.draw(in: NSRect(x: x, y: y, width: tinted.size.width, height: tinted.size.height),
+                     from: .zero, operation: .sourceOver, fraction: 1.0)
     }
 
     image.unlockFocus()
