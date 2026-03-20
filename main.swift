@@ -7,6 +7,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var toggleMenuItem: NSMenuItem!
     private var timer: Timer?
     private var ollamaRunning = false
+    private var ollamaBusy = false
     private var modelMenuItems: [NSMenuItem] = []
     private var modelSeparator: NSMenuItem!
     private var loadedModels: [(name: String, size: String)] = []
@@ -53,7 +54,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refreshAll() {
         let running = isOllamaRunning()
+        let busy = running ? isOllamaBusy() : false
         ollamaRunning = running
+        ollamaBusy = busy
         updateIcon()
         fetchModelsAsync()
     }
@@ -77,6 +80,49 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             return trimmed.hasSuffix("/ollama") || trimmed == "ollama"
         }
+    }
+
+    private func isOllamaBusy() -> Bool {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
+        proc.arguments = ["-i", "TCP:11434", "-s", "TCP:ESTABLISHED", "-t"]
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = FileHandle.nullDevice
+        do {
+            try proc.run()
+            proc.waitUntilExit()
+        } catch {
+            return false
+        }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
+        let pids = Set(output.split(separator: "\n").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) })
+
+        // Exclude all ollama PIDs and our own PID
+        let ollamaPids = getAllOllamaPids()
+        let myPid = Int(ProcessInfo.processInfo.processIdentifier)
+        let excluded = ollamaPids.union([myPid])
+        let clientPids = pids.subtracting(excluded)
+        return !clientPids.isEmpty
+    }
+
+    private func getAllOllamaPids() -> Set<Int> {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        proc.arguments = ["-x", "ollama"]
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = FileHandle.nullDevice
+        do {
+            try proc.run()
+            proc.waitUntilExit()
+        } catch {
+            return []
+        }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
+        return Set(output.split(separator: "\n").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) })
     }
 
     private func fetchModelsAsync() {
@@ -118,15 +164,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func updateIcon() {
-        if ollamaRunning {
-            statusItem.button?.image = makeSymbol(name: "eye.fill")
-        } else {
+        if !ollamaRunning {
             statusItem.button?.image = makeSymbol(name: "eye.slash")
+        } else if ollamaBusy {
+            statusItem.button?.image = makeSymbol(name: "eye.circle.fill")
+        } else {
+            statusItem.button?.image = makeSymbol(name: "eye.fill")
         }
     }
 
     private func updateMenu() {
-        statusMenuItem.title = ollamaRunning ? "Ollama: Running" : "Ollama: Stopped"
+        if !ollamaRunning {
+            statusMenuItem.title = "Ollama: Stopped"
+        } else if ollamaBusy {
+            statusMenuItem.title = "Ollama: Generating…"
+        } else {
+            statusMenuItem.title = "Ollama: Running"
+        }
         toggleMenuItem.title = ollamaRunning ? "Stop Ollama" : "Start Ollama"
 
         let menu = statusItem.menu!
@@ -153,7 +207,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        // Just update menu from cached state — don't block with process checks
         updateMenu()
     }
 
