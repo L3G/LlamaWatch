@@ -37,9 +37,17 @@ No dock icon. No windows. Just a small eye in your menu bar that tells you every
 
 - macOS 13+
 - [Ollama](https://ollama.com) installed via Homebrew (`brew install ollama`)
-- Xcode Command Line Tools (`xcode-select --install`)
 
 ## Install
+
+### Download (recommended)
+
+1. Download `LlamaWatch.zip` from the [latest release](https://github.com/L3G/LlamaWatch/releases/latest)
+2. Unzip and drag `LlamaWatch.app` to `/Applications/`
+
+### Build from source
+
+Requires Xcode Command Line Tools (`xcode-select --install`).
 
 ```bash
 git clone https://github.com/L3G/LlamaWatch.git
@@ -47,7 +55,7 @@ cd LlamaWatch
 make install
 ```
 
-This builds the app and copies it to `/Applications/`. To uninstall:
+To uninstall:
 
 ```bash
 make uninstall

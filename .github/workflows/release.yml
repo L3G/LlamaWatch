@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build LlamaWatch
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Create zip archive
+        run: |
+          cd build
+          zip -r LlamaWatch.zip LlamaWatch.app
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/LlamaWatch.zip
+          generate_release_notes: true
