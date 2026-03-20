@@ -20,18 +20,7 @@ No dock icon. No windows. Just a small eye in your menu bar that tells you every
 
 ## Screenshot
 
-```
-┌───────────────────────────────┐
-│  Ollama: Generating…          │
-│───────────────────────────────│
-│  Loaded Models                │
-│  ⏏ qwen3:8b  —  4.9 GB       │
-│───────────────────────────────│
-│  Stop Ollama                  │
-│───────────────────────────────│
-│  Quit LlamaWatch          ⌘Q  │
-└───────────────────────────────┘
-```
+<img width="231" height="198" alt="Image" src="https://github.com/user-attachments/assets/4c6186db-850d-4ed4-b66f-c9844adc162c" />
 
 ## Requirements
 
