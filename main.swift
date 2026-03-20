@@ -53,15 +53,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func refreshAll() {
-        let running = isOllamaRunning()
-        let busy = running ? isOllamaBusy() : false
-        ollamaRunning = running
-        ollamaBusy = busy
-        updateIcon()
-        fetchModelsAsync()
+        let myPid = Int(ProcessInfo.processInfo.processIdentifier)
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let running = Self.isOllamaRunning()
+            let busy = running ? Self.isOllamaBusy(myPid: myPid) : false
+            let models = running ? Self.fetchModels() : []
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.ollamaRunning = running
+                self.ollamaBusy = busy
+                self.loadedModels = models
+                self.updateIcon()
+                self.updateMenu()
+            }
+        }
     }
 
-    private func isOllamaRunning() -> Bool {
+    private static func isOllamaRunning() -> Bool {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/bin/ps")
         proc.arguments = ["-axo", "comm"]
@@ -70,11 +78,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         proc.standardError = FileHandle.nullDevice
         do {
             try proc.run()
-            proc.waitUntilExit()
         } catch {
             return false
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
         let output = String(data: data, encoding: .utf8) ?? ""
         return output.split(separator: "\n").contains { line in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -82,7 +90,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    private func isOllamaBusy() -> Bool {
+    private static func isOllamaBusy(myPid: Int) -> Bool {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
         proc.arguments = ["-i", "TCP:11434", "-s", "TCP:ESTABLISHED", "-t"]
@@ -91,23 +99,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         proc.standardError = FileHandle.nullDevice
         do {
             try proc.run()
-            proc.waitUntilExit()
         } catch {
             return false
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
         let output = String(data: data, encoding: .utf8) ?? ""
         let pids = Set(output.split(separator: "\n").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) })
 
-        // Exclude all ollama PIDs and our own PID
         let ollamaPids = getAllOllamaPids()
-        let myPid = Int(ProcessInfo.processInfo.processIdentifier)
         let excluded = ollamaPids.union([myPid])
         let clientPids = pids.subtracting(excluded)
         return !clientPids.isEmpty
     }
 
-    private func getAllOllamaPids() -> Set<Int> {
+    private static func getAllOllamaPids() -> Set<Int> {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         proc.arguments = ["-x", "ollama"]
@@ -116,26 +122,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         proc.standardError = FileHandle.nullDevice
         do {
             try proc.run()
-            proc.waitUntilExit()
         } catch {
             return []
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
         let output = String(data: data, encoding: .utf8) ?? ""
         return Set(output.split(separator: "\n").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) })
     }
 
-    private func fetchModelsAsync() {
-        guard ollamaRunning else {
-            loadedModels = []
-            updateMenu()
-            return
-        }
+    private static func fetchModels() -> [(name: String, size: String)] {
         let url = URL(string: "http://localhost:11434/api/ps")!
         var request = URLRequest(url: url)
         request.timeoutInterval = 2
-        URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-            var models: [(name: String, size: String)] = []
+        var result: [(name: String, size: String)] = []
+        let sema = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            defer { sema.signal() }
             if let data = data,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let list = json["models"] as? [[String: Any]] {
@@ -143,14 +146,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     let name = model["name"] as? String ?? "unknown"
                     let sizeBytes = model["size_vram"] as? Int64 ?? model["size"] as? Int64 ?? 0
                     let sizeGB = String(format: "%.1f GB", Double(sizeBytes) / 1_073_741_824)
-                    models.append((name: name, size: sizeGB))
+                    result.append((name: name, size: sizeGB))
                 }
             }
-            DispatchQueue.main.async {
-                self?.loadedModels = models
-                self?.updateMenu()
-            }
         }.resume()
+        _ = sema.wait(timeout: .now() + 2)
+        return result
     }
 
     private func makeSymbol(name: String) -> NSImage? {
